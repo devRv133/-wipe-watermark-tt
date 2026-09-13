@@ -696,27 +696,32 @@ async function triggerDirectDownload(event) {
 
     try {
         btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengunduh File...`;
+
+        // Triknya di sini: Pakai CORS Proxy agar browser tidak memblokir request
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(currentVideoUrl)}`;
         
-        // Fetch file video sebagai Blob
-        const res = await fetch(currentVideoUrl);
+        const res = await fetch(proxyUrl);
+        if (!res.ok) throw new Error("Gagal mengambil data dari proxy");
+        
         const blob = await res.blob();
-        
-        // Buat temporary link untuk trigger download otomatis
+
+        // Buat objek file sementara & pemicu unduhan otomatis
         const blobUrl = URL.createObjectURL(blob);
         const tempAnchor = document.createElement('a');
         tempAnchor.href = blobUrl;
         tempAnchor.download = `${currentVideoTitle}.mp4`;
-        
+
         document.body.appendChild(tempAnchor);
         tempAnchor.click();
         document.body.removeChild(tempAnchor);
-        
+
         // Bersihkan memori
         URL.revokeObjectURL(blobUrl);
         btn.innerHTML = originalText;
     } catch (err) {
-        // Fallback jika browser memblokir Fetch Blob: Buka link langsung
+        console.error("Download error:", err);
         btn.innerHTML = originalText;
+        // Jika proxy gagal, alternatif terakhir baru buka link langsung
         window.open(currentVideoUrl, '_blank');
     }
 }
