@@ -614,9 +614,10 @@
                     <img id="videoCover" src="" alt="Thumbnail Video">
                 </div>
                 <h3 id="videoTitle">Judul Video TikTok</h3>
-              <a id="downloadLink" href="#" onclick="triggerDirectDownload(event)" class="dl-btn">
+                <a id="downloadLink" href="#" onclick="triggerDirectDownload(event)" class="dl-btn">
     <i class="fa-solid fa-circle-down"></i> Download Video (No WM)
 </a>
+
             </div>
         </div>
 
@@ -694,50 +695,29 @@ async function triggerDirectDownload(event) {
 
     if (!currentVideoUrl) return;
 
-    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengunduh...`;
-
-    // Daftar beberapa CORS Proxy cadangan
-    const proxies = [
-        `https://corsproxy.io/?${encodeURIComponent(currentVideoUrl)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(currentVideoUrl)}`
-    ];
-
-    let blob = null;
-
-    // Coba proxy satu per satu
-    for (let proxy of proxies) {
-        try {
-            const res = await fetch(proxy);
-            if (res.ok) {
-                const tempBlob = await res.blob();
-                // Pastikan yang diunduh benar-benar file video (bukan error page)
-                if (tempBlob.size > 100000) { 
-                    blob = tempBlob;
-                    break;
-                }
-            }
-        } catch (e) {
-            console.warn("Proxy gagal, mencoba opsi lain...");
-        }
-    }
-
-    // Jika berhasil mendapatkan file video
-    if (blob) {
+    try {
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengunduh File...`;
+        
+        // Fetch file video sebagai Blob
+        const res = await fetch(currentVideoUrl);
+        const blob = await res.blob();
+        
+        // Buat temporary link untuk trigger download otomatis
         const blobUrl = URL.createObjectURL(blob);
         const tempAnchor = document.createElement('a');
         tempAnchor.href = blobUrl;
         tempAnchor.download = `${currentVideoTitle}.mp4`;
-
+        
         document.body.appendChild(tempAnchor);
         tempAnchor.click();
         document.body.removeChild(tempAnchor);
-
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        
+        // Bersihkan memori
+        URL.revokeObjectURL(blobUrl);
         btn.innerHTML = originalText;
-    } else {
-        // Jika semua proxy diblokir oleh TikTok
+    } catch (err) {
+        // Fallback jika browser memblokir Fetch Blob: Buka link langsung
         btn.innerHTML = originalText;
-        alert("Sistem keamanan TikTok memblokir unduhan langsung di browser ini.\n\nVideo akan dibuka di tab baru. Silahkan tekan lama pada video / klik titik tiga (...) lalu pilih 'Download'.");
         window.open(currentVideoUrl, '_blank');
     }
 }
