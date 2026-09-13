@@ -694,18 +694,35 @@ async function triggerDirectDownload(event) {
 
     if (!currentVideoUrl) return;
 
-    try {
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengunduh File...`;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengunduh...`;
 
-        // Triknya di sini: Pakai CORS Proxy agar browser tidak memblokir request
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(currentVideoUrl)}`;
-        
-        const res = await fetch(proxyUrl);
-        if (!res.ok) throw new Error("Gagal mengambil data dari proxy");
-        
-        const blob = await res.blob();
+    // Daftar beberapa CORS Proxy cadangan
+    const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(currentVideoUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(currentVideoUrl)}`
+    ];
 
-        // Buat objek file sementara & pemicu unduhan otomatis
+    let blob = null;
+
+    // Coba proxy satu per satu
+    for (let proxy of proxies) {
+        try {
+            const res = await fetch(proxy);
+            if (res.ok) {
+                const tempBlob = await res.blob();
+                // Pastikan yang diunduh benar-benar file video (bukan error page)
+                if (tempBlob.size > 100000) { 
+                    blob = tempBlob;
+                    break;
+                }
+            }
+        } catch (e) {
+            console.warn("Proxy gagal, mencoba opsi lain...");
+        }
+    }
+
+    // Jika berhasil mendapatkan file video
+    if (blob) {
         const blobUrl = URL.createObjectURL(blob);
         const tempAnchor = document.createElement('a');
         tempAnchor.href = blobUrl;
@@ -715,16 +732,16 @@ async function triggerDirectDownload(event) {
         tempAnchor.click();
         document.body.removeChild(tempAnchor);
 
-        // Bersihkan memori
-        URL.revokeObjectURL(blobUrl);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
         btn.innerHTML = originalText;
-    } catch (err) {
-        console.error("Download error:", err);
+    } else {
+        // Jika semua proxy diblokir oleh TikTok
         btn.innerHTML = originalText;
-        // Jika proxy gagal, alternatif terakhir baru buka link langsung
+        alert("Sistem keamanan TikTok memblokir unduhan langsung di browser ini.\n\nVideo akan dibuka di tab baru. Silahkan tekan lama pada video / klik titik tiga (...) lalu pilih 'Download'.");
         window.open(currentVideoUrl, '_blank');
     }
 }
+
     </script>
 </body>
 </html>
