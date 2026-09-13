@@ -614,9 +614,9 @@
                     <img id="videoCover" src="" alt="Thumbnail Video">
                 </div>
                 <h3 id="videoTitle">Judul Video TikTok</h3>
-                <a id="downloadLink" href="#" target="_blank" class="dl-btn">
-                    <i class="fa-solid fa-circle-down"></i> Download Video (No WM)
-                </a>
+              <a id="downloadLink" href="#" onclick="triggerDirectDownload(event)" class="dl-btn">
+    <i class="fa-solid fa-circle-down"></i> Download Video (No WM)
+</a>
             </div>
         </div>
 
@@ -636,50 +636,90 @@
     </div>
 
     <script>
-        async function downloadVideo() {
-            const urlInput = document.getElementById('tiktokUrl');
-            const inputGroup = document.getElementById('inputGroup');
-            const loading = document.getElementById('loading');
-            const result = document.getElementById('result');
-            const videoCover = document.getElementById('videoCover');
-            const videoTitle = document.getElementById('videoTitle');
-            const downloadLink = document.getElementById('downloadLink');
+        let currentVideoUrl = "";
+let currentVideoTitle = "";
 
-            const val = urlInput.value.trim();
+async function downloadVideo() {
+    const urlInput = document.getElementById('tiktokUrl');
+    const inputGroup = document.getElementById('inputGroup');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const videoCover = document.getElementById('videoCover');
+    const videoTitle = document.getElementById('videoTitle');
 
-            if (!val) {
-                inputGroup.classList.remove('shake');
-                void inputGroup.offsetWidth;
-                inputGroup.classList.add('shake');
-                return;
-            }
+    const val = urlInput.value.trim();
 
-            loading.classList.remove('hidden');
-            result.classList.add('hidden');
+    if (!val) {
+        inputGroup.classList.remove('shake');
+        void inputGroup.offsetWidth;
+        inputGroup.classList.add('shake');
+        return;
+    }
 
-            try {
-                const response = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(val)}`);
-                const data = await response.json();
+    loading.classList.remove('hidden');
+    result.classList.add('hidden');
 
-                if (data.code === 0) {
-                    const videoData = data.data;
+    try {
+        const response = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(val)}`);
+        const data = await response.json();
 
-                    videoCover.src = videoData.cover;
-                    videoTitle.innerText = videoData.title || "Video TikTok";
-                    downloadLink.href = videoData.play;
+        if (data.code === 0) {
+            const videoData = data.data;
 
-                    loading.classList.add('hidden');
-                    result.classList.remove('hidden');
-                } else {
-                    alert("Gagal mengambil video. Pastikan link benar dan akun tidak privat.");
-                    loading.classList.add('hidden');
-                }
-            } catch (error) {
-                console.error(error);
-                alert("Terjadi kesalahan saat memproses request. Periksa koneksi internet Anda.");
-                loading.classList.add('hidden');
-            }
+            videoCover.src = videoData.cover;
+            videoTitle.innerText = videoData.title || "Video TikTok";
+            
+            // Simpan data URL & Judul ke variabel global
+            currentVideoUrl = videoData.play;
+            currentVideoTitle = (videoData.title || "tiktok_video").replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
+
+            loading.classList.add('hidden');
+            result.classList.remove('hidden');
+        } else {
+            alert("Gagal mengambil video. Pastikan link benar dan akun tidak privat.");
+            loading.classList.add('hidden');
         }
+    } catch (error) {
+        console.error(error);
+        alert("Terjadi kesalahan saat memproses request. Periksa koneksi internet Anda.");
+        loading.classList.add('hidden');
+    }
+}
+
+// FUNGSI UNTUK FORCE DOWNLOAD LANGSUNG KE DEVICE
+async function triggerDirectDownload(event) {
+    event.preventDefault();
+    const btn = document.getElementById('downloadLink');
+    const originalText = btn.innerHTML;
+
+    if (!currentVideoUrl) return;
+
+    try {
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengunduh File...`;
+        
+        // Fetch file video sebagai Blob
+        const res = await fetch(currentVideoUrl);
+        const blob = await res.blob();
+        
+        // Buat temporary link untuk trigger download otomatis
+        const blobUrl = URL.createObjectURL(blob);
+        const tempAnchor = document.createElement('a');
+        tempAnchor.href = blobUrl;
+        tempAnchor.download = `${currentVideoTitle}.mp4`;
+        
+        document.body.appendChild(tempAnchor);
+        tempAnchor.click();
+        document.body.removeChild(tempAnchor);
+        
+        // Bersihkan memori
+        URL.revokeObjectURL(blobUrl);
+        btn.innerHTML = originalText;
+    } catch (err) {
+        // Fallback jika browser memblokir Fetch Blob: Buka link langsung
+        btn.innerHTML = originalText;
+        window.open(currentVideoUrl, '_blank');
+    }
+}
     </script>
 </body>
 </html>
